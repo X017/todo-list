@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>jQuery Test</title>
+  <script src="./jquery-3.7.1.min.js"></script>
+</head>
+<body>
+
+<style>
+  table {
+    background-color: #0e0e0e;
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  th, td {
+    padding: 8px;
+    border: 1px solid #333;
+    color: #aeaeae;
+  }
+
+  .modal {
+    display: none;
+    position: fixed;
+    z-index: 1;
+    left: 0; top: 0;
+    width: 100%; height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.4);
+  }
+
+  .modal-content {
+    background-color: #fefefe;
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+  }
+
+  .close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+  }
+
+  .close:hover, .close:focus {
+    color: black;
+    text-decoration: none;
+    cursor: pointer;
+  }
+</style>
+
+<script>
+var url = 'http://127.0.0.1:8000/tasks/';
+var tasksData = {}; // Store task data for easy access
+
+
+function reloadData(){
+    $.ajax({
+    url: url,
+    dataType: "json",
+    success: function(data){
+      $('#task-body').html('');
+
+      for (let i = 0; i < data.length; i++) {
+        let task = data[i];
+        let color = task.is_completed ? 'green' : 'red';
+
+        // Store task data for later use
+        tasksData[task.id] = task;
+
+        let row = `
+          <tr>
+            <td>${task.name}</td>
+            <td>${task.description}</td>
+            <td style="color:${color}">${task.is_completed}</td>
+            <td>
+              <button class="edit-btn" data-id="${task.id}">Edit</button>
+              <button class="deleteBtn" onclick="DeleteTask(${task.id})">Delete</button>
+            </td>
+          </tr>
+        `;
+        $('#task-body').append(row);
+      }
+    }
+  });
+
+}
+G
+  function DeleteTask(task_id) {
+      $(document).on('click', '.deleteBtn', function() {
+        $.ajax({
+          url: url + task_id  + '/',
+          method: "DELETE",
+          success: function() {
+            reloadData()
+          }
+        });
+      });
+    }
+
+
+$(document).ready(function(){
+
+reloadData()
+  // Open create modal
+  $(document).on('click', '.action-btn', function() {
+    $('#myModal').fadeIn();
+  });
+
+  // Close modal
+  $('.close').click(function() {
+    $('.modal').fadeOut();
+  });
+
+  // Close modal on outside click
+  $(window).click(function(e) {
+    if ($(e.target).hasClass('modal')) {
+      $('.modal').fadeOut();
+    }
+  });
+
+  // Submit new task
+  $('#sendBtn').click(function() {
+    var name = $('#name').val();
+    var description = $('#description').val();
+    var is_completed = $('input[name="is_completed"]:checked').val();
+
+    $.ajax({
+      type: "POST",
+      url: url,
+      data: {
+        name: name,
+        description: description,
+        is_completed: is_completed
+      },
+      success: function(response) {
+        reloadData()
+      },
+      error: function(xhr, status, error) {
+        console.log("POST failed:", error);
+      }
+    });
+  });
+
+  // Delete task
+
+  // Open update modal and populate with current values
+  $(document).on('click', '.edit-btn', function() {
+    let taskId = $(this).data('id');
+    let task = tasksData[taskId];
+    
+    if (task) {
+      // Populate the form with current values
+      $('#update_name').val(task.name);
+      $('#update_description').val(task.description);
+      
+      // Set the radio button based on current completion status
+      if (task.is_completed === true || task.is_completed === 'true') {
+        $('#update_completed_true').prop('checked', true);
+      } else {
+        $('#update_completed_false').prop('checked', true);
+      }
+      
+      // Store the task ID for the update operation
+      $('#updateModal').data('task-id', taskId);
+      
+      // Show the modal
+      $('#updateModal').fadeIn();
+    }
+  });
+
+  // Submit update
+  $('#updateSendBtn').click(function() {
+    let taskId = $('#updateModal').data('task-id');
+    let name = $('#update_name').val();
+    let description = $('#update_description').val();
+    let is_completed = $('input[name="update_is_completed"]:checked').val();
+
+    $.ajax({
+      url: url + taskId + '/',
+      method: 'PUT',
+      data: {
+        name: name,
+        description: description,
+        is_completed: is_completed
+      },
+      success: function() {
+        reloadData()
+      },
+      error: function(xhr, status, error) {
+        console.log("PUT failed:", error);
+      }
+    });
+  });
+});
+</script>
+
+<!-- Action Button -->
+<button class="action-btn">Add New Task</button>
+
+<!-- Table -->
+<table>
+  <thead>
+    <tr>
+      <th>name</th>
+      <th>description</th>
+      <th>completed</th>
+      <th>action</th>
+    </tr>
+  </thead>
+  <tbody id="task-body"></tbody>
+</table>
+
+<!-- Create Task Modal -->
+<div id="myModal" class="modal">
+  <div class="modal-content">
+    <span class="close">&times;</span>
+    <h3>Create New Task</h3>
+    <input type="text" id="name" placeholder="Name"><p></p>
+    <input type="text" id="description" placeholder="Description"><p></p>
+    <label>Is Completed:</label><br>
+    <input type="radio" id="completed_true" name="is_completed" value="true">
+    <label for="completed_true">True</label><br>
+    <input type="radio" id="completed_false" name="is_completed" value="false">
+    <label for="completed_false">False</label><p></p>
+    <button id="sendBtn">Send</button>
+  </div>
+</div>
+
+<!-- Update Task Modal -->
+<div id="updateModal" class="modal">
+  <div class="modal-content">
+    <span class="close">&times;</span>
+    <h3>Update Task</h3>
+    <input type="text" id="update_name" placeholder="Name"><p></p>
+    <input type="text" id="update_description" placeholder="Description"><p></p>
+    <label>Is Completed:</label><br>
+    <input type="radio" id="update_completed_true" name="update_is_completed" value="true">
+    <label for="update_completed_true">True</label><br>
+    <input type="radio" id="update_completed_false" name="update_is_completed" value="false">
+    <label for="update_completed_false">False</label><p></p>
+    <button id="updateSendBtn">Update</button>
+  </div>
+</div>
+
+</body>
+</html>
